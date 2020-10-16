@@ -1,5 +1,7 @@
 import torch
-
+import numpy as np
+import RMSEbasin
+import time
 
 class SigmaLoss(torch.nn.Module):
     def __init__(self, prior='gauss'):
@@ -40,14 +42,57 @@ class RmseLoss(torch.nn.Module):
     def forward(self, output, target):
         ny = target.shape[2]
         loss = 0
+
         for k in range(ny):
+            ### to calculate loss based on measurements
             p0 = output[:, :, k]
             t0 = target[:, :, k]
-            mask = t0 == t0
-            p = p0[mask]
-            t = t0[mask]
-            temp = torch.sqrt(((p - t)**2).mean())
-            loss = loss + temp
+            # mask = t0 == t0
+            # p = p0[mask]
+            # t = t0[mask]
+            # temp = torch.sqrt(((p - t) ** 2).mean())
+            # loss = loss + temp
+
+
+            #################################################
+            ### to calculate loss based on basins
+            # Chaopeng Version ##############
+            Loss = RMSEbasin.RMSEbasinLosstest()
+            l = Loss(output, target)
+            loss = loss + l
+            # Farshid ############# It is true but takes too much time to run
+
+            # temp1 = torch.zeros((t0.shape[1])).cuda()
+            # for i in range(t0.shape[1]):
+            #     mask = t0[:, i] == t0[:, i]
+            #     p = p0[:, i][mask]
+            #     t = t0[:, i][mask]
+            #     A = (p-t)**2
+            #     temp1[i] = (A.mean())
+            # mask = temp1==temp1
+            # if mask.sum()==0:
+            #     temp1[mask]=0
+            # else:
+            #     temp1 = temp1[mask]
+            # temp = torch.sqrt(temp1).mean()
+            #
+            # loss = loss+temp
+
+            ###########################
+
+
+################# METHOD 2 ############### it was not true
+            # k = (p0 - t0)**2
+            # kk = torch.mean(k, 0)
+            # mask = kk == kk
+            # temp = kk[mask]
+            # temp = torch.sqrt(temp.mean())
+            # loss = loss + temp
+
+
+
+
+
         return loss
 
 class RmseLossANN(torch.nn.Module):
