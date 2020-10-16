@@ -17,15 +17,17 @@ import math
 import random
 
 forcing_list = ['forcing_60%_days_306sites.feather',
-                'forcing_10%_days_415sites.feather'
+                'forcing_10%_days_415sites.feather',
+                'forcing_99%_days_99sites.feather'
                 ]
 attr_list = ['attr_temp60%_days_306sites.feather',
-             'attr_temp10%_days_415sites.feather'
+             'attr_temp10%_days_415sites.feather',
+             'attr_temp99%_days_99sites.feather'
              ]
 
-Batch_list = [153,  208]
-Hiddin_list = [70,  70]
-Randomseed = [1, 2, 3, 4, 5]
+Batch_list = [153, 208, 50]
+Hiddin_list = [ 80, 80, 80]
+Randomseed = [0, 1, 2, 3, 4, 5]
 for seed in Randomseed:
     for f_list, a_list, b_list, h_list in zip(forcing_list, attr_list, Batch_list, Hiddin_list):
 
