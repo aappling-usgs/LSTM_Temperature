@@ -47,19 +47,19 @@ class RmseLoss(torch.nn.Module):
             ### to calculate loss based on measurements
             p0 = output[:, :, k]
             t0 = target[:, :, k]
-            # mask = t0 == t0
-            # p = p0[mask]
-            # t = t0[mask]
-            # temp = torch.sqrt(((p - t) ** 2).mean())
-            # loss = loss + temp
+            mask = t0 == t0
+            p = p0[mask]
+            t = t0[mask]
+            temp = torch.sqrt(((p - t) ** 2).mean())
+            loss = loss + temp
 
 
             #################################################
             ### to calculate loss based on basins
             # Chaopeng Version ##############
-            Loss = RMSEbasin.RMSEbasinLosstest()
-            l = Loss(output, target)
-            loss = loss + l
+            # Loss = RMSEbasin.RMSEbasinLosstest()
+            # l = Loss(output, target)
+            # loss = loss + l
             # Farshid ############# It is true but takes too much time to run
 
             # temp1 = torch.zeros((t0.shape[1])).cuda()
@@ -79,18 +79,6 @@ class RmseLoss(torch.nn.Module):
             # loss = loss+temp
 
             ###########################
-
-
-################# METHOD 2 ############### it was not true
-            # k = (p0 - t0)**2
-            # kk = torch.mean(k, 0)
-            # mask = kk == kk
-            # temp = kk[mask]
-            # temp = torch.sqrt(temp.mean())
-            # loss = loss + temp
-
-
-
 
 
         return loss
