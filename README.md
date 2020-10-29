@@ -1,3 +1,60 @@
+## LSTM Temperature Model
+
+This README explains how to use the provided data and code in this data release to replicate the training and prediction steps for the stream temperature models (LSTM and LR) described in the paper.
+
+### Prepare data
+
+Steps to acquire the data to run this code:
+
+1. Download files from ScienceBase. This can be done using the ScienceBase browser interface or using the `sbtools` R package as follows:
+```r
+library(sbtools)
+
+
+```
+
+
+Steps to run this code to train the LSTM and predict stream temperature:
+
+To enable `from mpl_toolkits.basemap import Basemap`, which broke in a few ways at first, start with these lines:
+```py
+import os
+os.environ["PROJ_LIB"] = os.path.join(os.environ["CONDA_PREFIX"], 'share','proj')
+```
+
+* main code is StreamTemp_integ.py.
+* copy forcing pandas files into scratch/SNTemp/Forcing/Forcing_new
+* copy attribute pandas files into scratch/SNTemp/Forcing/attr_new
+* edit forcingLst and attrLstSel in hydroDL/data/model/camels.py
+
+
+## Conda environment
+
+We should be able to use a single environment for both models (T and Q). Here's how the conda environment was prepared:
+
+First we configure conda:
+```sh
+conda config --set channel_priority strict
+conda config --prepend channels conda-forge
+conda config --prepend channels defaults
+```
+
+Then we create the environment and necessary packages:
+```sh
+conda create -n lstm_tq
+conda activate lstm_tq
+conda install python=3 matplotlib=3.2 basemap=1.2.1 numpy pandas scipy time pytorch statsmodels pyarrow
+```
+I started by trying to assign versions as noted in Farshid's cluster environment notes (below), but `conda` with strict channel priority couldn't resolve `python=3.7.9 matplotlib=3.2.2 numpy=1.19.1 pandas=1.1.1 scipy=1.1.0 time`, so I just asked it to prepare a combo of those packages with `python=3` instead.
+
+Export to YAML:
+```sh
+conda env export -n lstm_tq | grep -v "^prefix: " > in_data/LSTM_Temperature/condaenv_lstm_tq.yml
+```
+
+####### original #######
+
+
 # LSTM_Temperature Modeling
 Using LSTM for stream temperature modeling.
 main code is StreamTemp_integ.py.
