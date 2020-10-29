@@ -21,113 +21,75 @@ pd.read_csv('../rahmani_erl_data_release/in_data/Data - ERL paper/Forcing_attrFi
 ```
 
 
-Steps to run this code to train the LSTM and predict stream temperature:
-
-To enable `from mpl_toolkits.basemap import Basemap`, which broke in a few ways at first, start with these lines:
-```py
-import os
-os.environ["PROJ_LIB"] = os.path.join(os.environ["CONDA_PREFIX"], 'share','proj')
-```
-
 * main code is StreamTemp_integ.py.
 * copy forcing pandas files into scratch/SNTemp/Forcing/Forcing_new
 * copy attribute pandas files into scratch/SNTemp/Forcing/attr_new
 * edit forcingLst and attrLstSel in hydroDL/data/model/camels.py
 
 
-## Conda environment
-
-We should be able to use a single environment for both models (T and Q). Here's how the conda environment was prepared:
-
-First we configure conda:
+Run the following code in an `sh` (e.g., `bash`) terminal to train the LSTM and predict stream temperature:
 ```sh
+conda activate lstm_tq
+python StreamTemp-Integ.py
+```
+
+
+
+## Conda environment preparation
+
+You shouldn't need to run this, but here's how the conda environment YAML was prepared:
+```sh
+# update and configure conda
+conda update -n base -c defaults conda
 conda config --set channel_priority strict
 conda config --prepend channels conda-forge
 conda config --prepend channels defaults
-```
 
-Then we create the environment and necessary packages:
-```sh
+# create the environment and install modules:
 conda create -n lstm_tq
 conda activate lstm_tq
-```
+conda install python=3 matplotlib=2.2.0 basemap numpy pandas scipy time statsmodels pyarrow
+conda install pytorch==1.2.0 -c pytorch
 
-I started by trying to assign versions as noted in Farshid's cluster environment notes (below), but `conda` with strict channel priority couldn't resolve `python=3.7.9 matplotlib=3.2.2 numpy=1.19.1 pandas=1.1.1 scipy=1.1.0 time`, so I just asked it to prepare a combo of those packages with `python=3` instead.
-```sh
-conda install python=3 matplotlib=3.2 basemap=1.2.1 numpy pandas scipy time pytorch statsmodels pyarrow
-```
-
-Then I updated conda
-```sh
-conda update -n base -c defaults conda
-```
-and ran
-```sh
-conda install python=3 matplotlib basemap numpy pandas scipy time pytorch statsmodels pyarrow
-```
-with fewer constraints because the previous line had conflicts with the updated conda -c defaults. This new environment fails on  
-```
-Traceback (most recent call last):
-  File "/Users/aappling/Documents/Code/Code-PGDL/LSTM_Temperature/StreamTemp-Integ.py", line 3, in <module>
-    from hydroDL import master, utils
-  File "/Users/aappling/Documents/Code/Code-PGDL/LSTM_Temperature/hydroDL/__init__.py", line 42, in <module>
-    from . import post
-  File "/Users/aappling/Documents/Code/Code-PGDL/LSTM_Temperature/hydroDL/post/__init__.py", line 2, in <module>
-    from . import plot
-  File "/Users/aappling/Documents/Code/Code-PGDL/LSTM_Temperature/hydroDL/post/plot.py", line 17, in <module>
-    from mpl_toolkits import basemap
-  File "/Users/aappling/opt/anaconda3/envs/lstm_tq/lib/python3.7/site-packages/mpl_toolkits/basemap/__init__.py", line 26, in <module>
-    from matplotlib.cbook import dedent
-ImportError: cannot import name 'dedent' from 'matplotlib.cbook' (/Users/aappling/opt/anaconda3/envs/lstm_tq/lib/python3.7/site-packages/matplotlib/cbook/__init__.py)
-```
-
-Next try (removing and recreating lstm_tq each time with `conda deactivate && conda env remove -n lstm_tq && conda create -n lstm_tq && conda activate lstm_tq`):
-```sh
-conda install python=3 matplotlib=2.2 basemap=1.2 numpy pandas scipy time pytorch statsmodels pyarrow
-```
-still stuck on
-```sh
-  File "/Users/aappling/opt/anaconda3/envs/lstm_tq/lib/python3.7/site-packages/mpl_toolkits/basemap/__init__.py", line 26, in <module>
-    from matplotlib.cbook import dedent
-ImportError: cannot import name 'dedent' from 'matplotlib.cbook' (/Users/aappling/opt/anaconda3/envs/lstm_tq/lib/python3.7/site-packages/matplotlib/cbook/__init__.py)
-```
-
-Next try, using https://github.com/matplotlib/basemap/issues/439:
-```sh
-conda install python=3 matplotlib=2.2.0 basemap numpy pandas scipy time pytorch statsmodels pyarrow
-```
-no longer stuck on dedent! Now getting
-```sh
-/Users/aappling/opt/anaconda3/envs/lstm_tq/bin/python /Users/aappling/Documents/Code/Code-PGDL/LSTM_Temperature/StreamTemp-Integ.py
-loading package hydroDL
-Fontconfig warning: ignoring UTF-8: not a valid region tag
-random seed updated!
-Traceback (most recent call last):
-  File "/Users/aappling/Documents/Code/Code-PGDL/LSTM_Temperature/StreamTemp-Integ.py", line 128, in <module>
-    df, x, y, c = master.loadData(optData, TempTarget, forcing_path, attr_path, out)  # df: CAMELS dataframe; x: forcings; y: streamflow obs; c:attributes
-  File "/Users/aappling/Documents/Code/Code-PGDL/LSTM_Temperature/hydroDL/master/master.py", line 186, in loadData
-    rmNan=optData['rmNan'][0])
-  File "/Users/aappling/Documents/Code/Code-PGDL/LSTM_Temperature/hydroDL/data/camels.py", line 503, in getDataTs
-    dfMain = pd.read_feather(inputfiles)
-  File "/Users/aappling/opt/anaconda3/envs/lstm_tq/lib/python3.6/site-packages/pandas/io/feather_format.py", line 103, in read_feather
-    df = feather.read_feather(path, columns=columns, use_threads=bool(use_threads))
-  File "/Users/aappling/opt/anaconda3/envs/lstm_tq/lib/python3.6/site-packages/pyarrow/feather.py", line 214, in read_feather
-    reader = FeatherReader(source)
-  File "/Users/aappling/opt/anaconda3/envs/lstm_tq/lib/python3.6/site-packages/pyarrow/feather.py", line 40, in __init__
-    self.open(source)
-  File "pyarrow/feather.pxi", line 83, in pyarrow.lib.FeatherReader.open
-  File "pyarrow/error.pxi", line 78, in pyarrow.lib.check_status
-pyarrow.lib.ArrowInvalid: Not a feather file
-```
-
-Export to YAML:
-```sh
+# export to YAML:
 conda env export -n lstm_tq | grep -v "^prefix: " > condaenv_lstm_tq.yml
 ```
 
-####### original #######
+Current error with EPOCH = saveEPOCH = TestEPOCH = 5 instead of 2000:
+```
+loading package hydroDL
+random seed updated!
+Local calibration kernel is shut down!
+write master file /Users/aappling/Documents/Code/Code-PGDL/LSTM_Temperature/TempDemo/FirstRun/epochs5_batch59_rho365_hiddensize100_Tstart20101001_Tend20141001/All-2010-2016/master.json
+/Users/aappling/opt/anaconda3/envs/lstm_tq/lib/python3.6/site-packages/torch/nn/functional.py:1350: UserWarning: nn.functional.sigmoid is deprecated. Use torch.sigmoid instead.
+  warnings.warn("nn.functional.sigmoid is deprecated. Use torch.sigmoid instead.")
+/Users/aappling/opt/anaconda3/envs/lstm_tq/lib/python3.6/site-packages/torch/nn/functional.py:1339: UserWarning: nn.functional.tanh is deprecated. Use torch.tanh instead.
+  warnings.warn("nn.functional.tanh is deprecated. Use torch.tanh instead.")
+Epoch 1 Loss 0.450 time 34.59
+Epoch 2 Loss 0.277 time 34.04
+Epoch 3 Loss 0.253 time 31.35
+Epoch 4 Loss 0.241 time 31.38
+Epoch 5 Loss 0.232 time 30.79
+read master file /Users/aappling/Documents/Code/Code-PGDL/LSTM_Temperature/TempDemo/FirstRun/epochs5_batch59_rho365_hiddensize100_Tstart20101001_Tend20141001/All-2010-2016/master.json
+read master file /Users/aappling/Documents/Code/Code-PGDL/LSTM_Temperature/TempDemo/FirstRun/epochs5_batch59_rho365_hiddensize100_Tstart20101001_Tend20141001/All-2010-2016/master.json
+output files: ['/Users/aappling/Documents/Code/Code-PGDL/LSTM_Temperature/TempDemo/FirstRun/epochs5_batch59_rho365_hiddensize100_Tstart20101001_Tend20141001/All-2010-2016/All_20141001_20161001_ep5_Streamflow.csv']
+Runing new results
+Local calibration kernel is shut down!
+Traceback (most recent call last):
+  File "/Users/aappling/Documents/Code/Code-PGDL/LSTM_Temperature/StreamTemp-Integ.py", line 189, in <module>
+    df, pred, obs, x = master.test(out, TempTarget, forcing_path, attr_path, tRange=tRange, subset=subset, basinnorm=False, epoch=TestEPOCH, reTest=True)
+  File "/Users/aappling/Documents/Code/Code-PGDL/LSTM_Temperature/hydroDL/master/master.py", line 565, in test
+    model, x, c, batchSize=batchSize, filePathLst=filePathLst, doMC=doMC)
+  File "/Users/aappling/Documents/Code/Code-PGDL/LSTM_Temperature/hydroDL/model/train.py", line 162, in testModel
+    model.train(mode=False)
+  File "/Users/aappling/opt/anaconda3/envs/lstm_tq/lib/python3.6/site-packages/torch/nn/modules/module.py", line 1070, in train
+    module.train(mode)
+TypeError: 'bool' object is not callable
+```
 
+## Environment used in manuscript
 
+The python environment 
 # LSTM_Temperature Modeling
 Using LSTM for stream temperature modeling.
 main code is StreamTemp_integ.py.

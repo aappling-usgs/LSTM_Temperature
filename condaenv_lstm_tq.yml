@@ -1,9 +1,9 @@
 name: lstm_tq
 channels:
+  - pytorch
   - defaults
   - conda-forge
 dependencies:
-  - _pytorch_select=0.1=cpu_0
   - arrow-cpp=0.15.1=py36hb41def8_6
   - basemap=1.2.0=py36h0acbc05_0
   - blas=1.0=mkl
@@ -55,7 +55,7 @@ dependencies:
   - pyshp=2.1.2=py_0
   - python=3.6.12=h26836e1_2
   - python-dateutil=2.8.1=py_0
-  - pytorch=1.4.0=cpu_py36hf9bb1df_0
+  - pytorch=1.2.0=py3.6_0
   - pytz=2020.1=py_0
   - re2=2019.08.01=h0a44026_0
   - readline=8.0=h1de35cc_0
