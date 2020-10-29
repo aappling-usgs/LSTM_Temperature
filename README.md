@@ -43,13 +43,40 @@ Then we create the environment and necessary packages:
 ```sh
 conda create -n lstm_tq
 conda activate lstm_tq
+```
+
+I started by trying to assign versions as noted in Farshid's cluster environment notes (below), but `conda` with strict channel priority couldn't resolve `python=3.7.9 matplotlib=3.2.2 numpy=1.19.1 pandas=1.1.1 scipy=1.1.0 time`, so I just asked it to prepare a combo of those packages with `python=3` instead.
+```sh
 conda install python=3 matplotlib=3.2 basemap=1.2.1 numpy pandas scipy time pytorch statsmodels pyarrow
 ```
-I started by trying to assign versions as noted in Farshid's cluster environment notes (below), but `conda` with strict channel priority couldn't resolve `python=3.7.9 matplotlib=3.2.2 numpy=1.19.1 pandas=1.1.1 scipy=1.1.0 time`, so I just asked it to prepare a combo of those packages with `python=3` instead.
+
+Then I updated conda
+```sh
+conda update -n base -c defaults conda
+```
+and ran
+```sh
+conda install python=3 matplotlib basemap numpy pandas scipy time pytorch statsmodels pyarrow
+```
+with fewer constraints because the previous line had conflicts with the updated conda -c defaults. This new environment fails on  
+```
+Traceback (most recent call last):
+  File "/Users/aappling/Documents/Code/Code-PGDL/LSTM_Temperature/StreamTemp-Integ.py", line 3, in <module>
+    from hydroDL import master, utils
+  File "/Users/aappling/Documents/Code/Code-PGDL/LSTM_Temperature/hydroDL/__init__.py", line 42, in <module>
+    from . import post
+  File "/Users/aappling/Documents/Code/Code-PGDL/LSTM_Temperature/hydroDL/post/__init__.py", line 2, in <module>
+    from . import plot
+  File "/Users/aappling/Documents/Code/Code-PGDL/LSTM_Temperature/hydroDL/post/plot.py", line 17, in <module>
+    from mpl_toolkits import basemap
+  File "/Users/aappling/opt/anaconda3/envs/lstm_tq/lib/python3.7/site-packages/mpl_toolkits/basemap/__init__.py", line 26, in <module>
+    from matplotlib.cbook import dedent
+ImportError: cannot import name 'dedent' from 'matplotlib.cbook' (/Users/aappling/opt/anaconda3/envs/lstm_tq/lib/python3.7/site-packages/matplotlib/cbook/__init__.py)
+```
 
 Export to YAML:
 ```sh
-conda env export -n lstm_tq | grep -v "^prefix: " > in_data/LSTM_Temperature/condaenv_lstm_tq.yml
+conda env export -n lstm_tq | grep -v "^prefix: " > condaenv_lstm_tq.yml
 ```
 
 ####### original #######
