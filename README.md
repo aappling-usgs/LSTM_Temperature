@@ -13,6 +13,13 @@ library(sbtools)
 
 ```
 
+Convert data files from csv to pands:
+```py
+import pandas as pd
+pd.read_csv('../rahmani_erl_data_release/in_data/Data - ERL paper/Forcing_attrFiles/no_dam_attr_temp60__days118sites.csv').drop('Unnamed: 0', axis=1).to_feather('scratch/SNTemp/Forcing/attr_new/no_dam_attr_temp60%_days118sites.feather')
+pd.read_csv('../rahmani_erl_data_release/in_data/Data - ERL paper/Forcing_attrFiles/no_dam_forcing_60__days118sites.csv').drop('Unnamed: 0', axis=1).to_feather('scratch/SNTemp/Forcing/Forcing_new/no_dam_forcing_60%_days118sites.feather')
+```
+
 
 Steps to run this code to train the LSTM and predict stream temperature:
 
@@ -85,7 +92,7 @@ still stuck on
 ImportError: cannot import name 'dedent' from 'matplotlib.cbook' (/Users/aappling/opt/anaconda3/envs/lstm_tq/lib/python3.7/site-packages/matplotlib/cbook/__init__.py)
 ```
 
-Next try:
+Next try, using https://github.com/matplotlib/basemap/issues/439:
 ```sh
 conda install python=3 matplotlib=2.2.0 basemap numpy pandas scipy time pytorch statsmodels pyarrow
 ```
