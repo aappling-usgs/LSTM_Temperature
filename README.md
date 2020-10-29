@@ -74,7 +74,7 @@ Traceback (most recent call last):
 ImportError: cannot import name 'dedent' from 'matplotlib.cbook' (/Users/aappling/opt/anaconda3/envs/lstm_tq/lib/python3.7/site-packages/matplotlib/cbook/__init__.py)
 ```
 
-Next try (removing and recreating lstm_tq each time with `conda env remove -n lstm_tq && conda create -n lstm_tq && conda activate lstm_tq`):
+Next try (removing and recreating lstm_tq each time with `conda deactivate && conda env remove -n lstm_tq && conda create -n lstm_tq && conda activate lstm_tq`):
 ```sh
 conda install python=3 matplotlib=2.2 basemap=1.2 numpy pandas scipy time pytorch statsmodels pyarrow
 ```
@@ -83,6 +83,34 @@ still stuck on
   File "/Users/aappling/opt/anaconda3/envs/lstm_tq/lib/python3.7/site-packages/mpl_toolkits/basemap/__init__.py", line 26, in <module>
     from matplotlib.cbook import dedent
 ImportError: cannot import name 'dedent' from 'matplotlib.cbook' (/Users/aappling/opt/anaconda3/envs/lstm_tq/lib/python3.7/site-packages/matplotlib/cbook/__init__.py)
+```
+
+Next try:
+```sh
+conda install python=3 matplotlib=2.2.0 basemap numpy pandas scipy time pytorch statsmodels pyarrow
+```
+no longer stuck on dedent! Now getting
+```sh
+/Users/aappling/opt/anaconda3/envs/lstm_tq/bin/python /Users/aappling/Documents/Code/Code-PGDL/LSTM_Temperature/StreamTemp-Integ.py
+loading package hydroDL
+Fontconfig warning: ignoring UTF-8: not a valid region tag
+random seed updated!
+Traceback (most recent call last):
+  File "/Users/aappling/Documents/Code/Code-PGDL/LSTM_Temperature/StreamTemp-Integ.py", line 128, in <module>
+    df, x, y, c = master.loadData(optData, TempTarget, forcing_path, attr_path, out)  # df: CAMELS dataframe; x: forcings; y: streamflow obs; c:attributes
+  File "/Users/aappling/Documents/Code/Code-PGDL/LSTM_Temperature/hydroDL/master/master.py", line 186, in loadData
+    rmNan=optData['rmNan'][0])
+  File "/Users/aappling/Documents/Code/Code-PGDL/LSTM_Temperature/hydroDL/data/camels.py", line 503, in getDataTs
+    dfMain = pd.read_feather(inputfiles)
+  File "/Users/aappling/opt/anaconda3/envs/lstm_tq/lib/python3.6/site-packages/pandas/io/feather_format.py", line 103, in read_feather
+    df = feather.read_feather(path, columns=columns, use_threads=bool(use_threads))
+  File "/Users/aappling/opt/anaconda3/envs/lstm_tq/lib/python3.6/site-packages/pyarrow/feather.py", line 214, in read_feather
+    reader = FeatherReader(source)
+  File "/Users/aappling/opt/anaconda3/envs/lstm_tq/lib/python3.6/site-packages/pyarrow/feather.py", line 40, in __init__
+    self.open(source)
+  File "pyarrow/feather.pxi", line 83, in pyarrow.lib.FeatherReader.open
+  File "pyarrow/error.pxi", line 78, in pyarrow.lib.check_status
+pyarrow.lib.ArrowInvalid: Not a feather file
 ```
 
 Export to YAML:
@@ -99,7 +127,7 @@ main code is StreamTemp_integ.py.
 copy forcing pandas files in scratch/SNTemp/Forcing/Forcing_new
 copy attribute pandas files in scratch/SNTemp/Forcing/attr_new
 
-
+```
 # packages in environment :
 #
 # Name                    Version                   Build  Channel
@@ -224,4 +252,5 @@ zeromq                    4.3.2                ha925a31_3
 zipp                      3.1.0                      py_0  
 zlib                      1.2.11               h62dcd97_4  
 zstd                      1.4.5                h04227a9_0  
+```
 Note: you may need to restart the kernel to use updated packages.
