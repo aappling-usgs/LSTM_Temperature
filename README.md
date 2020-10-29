@@ -74,6 +74,17 @@ Traceback (most recent call last):
 ImportError: cannot import name 'dedent' from 'matplotlib.cbook' (/Users/aappling/opt/anaconda3/envs/lstm_tq/lib/python3.7/site-packages/matplotlib/cbook/__init__.py)
 ```
 
+Next try (removing and recreating lstm_tq each time with `conda env remove -n lstm_tq && conda create -n lstm_tq && conda activate lstm_tq`):
+```sh
+conda install python=3 matplotlib=2.2 basemap=1.2 numpy pandas scipy time pytorch statsmodels pyarrow
+```
+still stuck on
+```sh
+  File "/Users/aappling/opt/anaconda3/envs/lstm_tq/lib/python3.7/site-packages/mpl_toolkits/basemap/__init__.py", line 26, in <module>
+    from matplotlib.cbook import dedent
+ImportError: cannot import name 'dedent' from 'matplotlib.cbook' (/Users/aappling/opt/anaconda3/envs/lstm_tq/lib/python3.7/site-packages/matplotlib/cbook/__init__.py)
+```
+
 Export to YAML:
 ```sh
 conda env export -n lstm_tq | grep -v "^prefix: " > condaenv_lstm_tq.yml
