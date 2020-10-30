@@ -41,15 +41,15 @@ You shouldn't need to run this, but here's how the conda environment YAML was pr
 ```sh
 # update and configure conda
 conda update -n base -c defaults conda
-conda config --set channel_priority strict
+conda config --set channel_priority flexible
 conda config --prepend channels conda-forge
 conda config --prepend channels defaults
+conda config --prepend channels pytorch
 
 # create the environment and install modules:
 conda create -n lstm_tq
 conda activate lstm_tq
-conda install python=3 matplotlib=2.2.0 basemap numpy pandas scipy time statsmodels pyarrow
-conda install pytorch==1.2.0 -c pytorch
+conda install python matplotlib=2.2.0 basemap numpy pandas scipy time statsmodels pyarrow pytorch=1.2.0
 
 # export to YAML:
 conda env export -n lstm_tq | grep -v "^prefix: " > condaenv_lstm_tq.yml
