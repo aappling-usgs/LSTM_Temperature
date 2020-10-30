@@ -39,7 +39,7 @@ class LSTMcell_untied(torch.nn.Module):
 
         self.drMethod = drMethod.split('+')
         self.gpu = gpu
-        self.train = train
+        self.train_i = train
         if gpu >= 0:
             self = self.cuda(gpu)
             self.is_cuda = True
@@ -174,11 +174,11 @@ class LSTMcell_tied(torch.nn.Module):
         self.gpu = gpu
         self.mode = mode
         if mode == 'train':
-            self.train(mode=True)
+            self.train_i(mode=True)
         elif mode == 'test':
-            self.train(mode=False)
+            self.train_i(mode=False)
         elif mode == 'drMC':
-            self.train(mode=False)
+            self.train_i(mode=False)
 
         if gpu >= 0:
             self = self.cuda()
