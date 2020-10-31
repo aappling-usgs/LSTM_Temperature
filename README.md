@@ -2,42 +2,107 @@
 
 This README explains how to use the provided data and code in this data release to replicate the training and prediction steps for the stream temperature models (LSTM and LR) described in the paper.
 
+### Configure software environment
+
+Create and activate the conda environment with all necessary software packages. Choose the `condaenv_lstm_xx.yml` file that fits your operating system, or create your own using code from the "Conda environment preparation" section below
+```
+conda update -n base -c defaults conda
+conda env create -f condaenv_lstm_linux.yml -n lstm_tq
+conda activate lstm_tq
+```
+
 ### Prepare data
 
 Steps to acquire the data to run this code:
 
-1. Download files from ScienceBase. This can be done using the ScienceBase browser interface or using the `sbtools` R package as follows:
-```r
-library(sbtools)
-
-
-```
-
-Convert data files from csv to pands:
+1. Download files from ScienceBase. This can be done using the ScienceBase browser interface or using the `sciencebasepy` python package as follows:
 ```py
-import pandas as pd
-pd.read_csv('../rahmani_erl_data_release/in_data/Data - ERL paper/Forcing_attrFiles/no_dam_attr_temp60__days118sites.csv').drop('Unnamed: 0', axis=1).to_feather('scratch/SNTemp/Forcing/attr_new/no_dam_attr_temp60%_days118sites.feather')
-pd.read_csv('../rahmani_erl_data_release/in_data/Data - ERL paper/Forcing_attrFiles/no_dam_forcing_60__days118sites.csv').drop('Unnamed: 0', axis=1).to_feather('scratch/SNTemp/Forcing/Forcing_new/no_dam_forcing_60%_days118sites.feather')
+# in python:
+import os
+import sciencebasepy
+from zipfile import ZipFile
+sb = sciencebasepy.SbSession()
+sb.login(username, password) # enter your username and password
+os.mkdir('scratch/datarelease')
+sb.get_item_files(sb.get_item('5f986594d34e198cb77ff084'), 'scratch/datarelease') # temperature and flow observations
+sb.get_item_files(sb.get_item('5f9865abd34e198cb77ff086'), 'scratch/datarelease') # model drivers and basin attributes
+sb.get_item_files(sb.get_item('5f9865e5d34e198cb77ff08a'), 'scratch/datarelease') # flow predictions
+
+# Extract the zipfiles
+ZipFile('scratch/datarelease/weather_drivers.zip', 'r').extractall('scratch/datarelease')
 ```
 
+2. Convert data files from csv to pandas:
+```py
+# in python:
+import pandas as pd
+import numpy as np
 
-* main code is StreamTemp_integ.py.
-* copy forcing pandas files into scratch/SNTemp/Forcing/Forcing_new
-* copy attribute pandas files into scratch/SNTemp/Forcing/attr_new
-* edit forcingLst and attrLstSel in hydroDL/data/model/camels.py
+# read the attributes csv file and save as feather
+attr = pd.read_csv('scratch/datarelease/AT_basin_attributes.csv')
+attr.to_feather('scratch/SNTemp/Forcing/attr_new/no_dam_attr_temp60%_days118sites.feather')
 
+# read the component forcing files
+weather = pd.read_csv('scratch/datarelease/weather_drivers.csv', parse_dates = ['datetime'])
+wtemp = pd.read_csv('scratch/datarelease/temperature_observations.csv', parse_dates = ['datetime']).\
+    rename(columns={'temp_degC': '00010_Mean'})
+discharge = pd.read_csv('scratch/datarelease/flow_observations.csv', parse_dates = ['datetime']).\
+    rename(columns={'discharge_cfs': '00060_Mean'})
+sim_discharge = pd.read_csv('scratch/datarelease/pred_discharge.csv', parse_dates = ['datetime'])
 
-Run the following code in an `sh` (e.g., `bash`) terminal to train the LSTM and predict stream temperature:
+# combine forcings into a single file and save
+forcings = pd.merge(weather, wtemp, how='outer').merge(discharge, how='outer').merge(sim_discharge, how='left')
+forcings['combine_discharge'] = np.where(
+    forcings['datetime'] >= np.datetime64('2014-10-01'),
+    forcings['sim_discharge_cfs'], forcings['00060_Mean'])
+forcings.to_feather('scratch/SNTemp/Forcing/Forcing_new/no_dam_forcing_60%_days118sites.feather')
+
+#attrf = pd.read_feather('scratch/no_dam_attr_temp60%_days118sites.feather')
+#forcingsf = pd.read_feather('scratch/no_dam_forcing_60%_days118sites.feather')
+
+attro = pd.read_csv('../rahmani_erl_data_release/in_data/Data - ERL paper/Forcing_attrFiles/no_dam_attr_temp60__days118sites.csv')
+forcingso = pd.read_csv('../rahmani_erl_data_release/in_data/Data - ERL paper/Forcing_attrFiles/no_dam_forcing_60__days118sites.csv', parse_dates=['datetime'])
+forcingso[(forcingso['datetime'] >='2010-10-01') & (forcingso['datetime'] <= '2016-09-30')]
+
+```
+
+3. Edit lines 36-48 in hydroDL/data/camels.py to set the forcing and basin attribute variables appropriate to the model of interest.
+
+For Ts,obsQ:
+```py
+forcingLst = ['dayl(s)', 'prcp(mm/day)', 'srad(W/m2)', 'tmax(C)', 'tmin(C)', 'vp(Pa)', '00060_Mean']
+```
+For Ts,noQ:
+```py
+forcingLst = ['dayl(s)', 'prcp(mm/day)', 'srad(W/m2)', 'tmax(C)', 'tmin(C)', 'vp(Pa)']
+```
+For Ts,simQ:
+```py
+forcingLst = ['dayl(s)', 'prcp(mm/day)', 'srad(W/m2)', 'tmax(C)', 'tmin(C)', 'vp(Pa)', 'combine_discharge']
+```
+
+For all three models:
+```py
+attrLstSel = [
+    'DRAIN_SQKM', 'STREAMS_KM_SQ_KM', 'STOR_NID_2009', 'FORESTNLCD06', 'PLANTNLCD06', 'SLOPE_PCT',
+    'RAW_DIS_NEAREST_MAJ_DAM', 'PERDUN', 'RAW_DIS_NEAREST_DAM', 'RAW_AVG_DIS_ALL_MAJ_DAMS', 'T_MIN_BASIN',
+    'T_MINSTD_BASIN', 'RH_BASIN', 'RAW_AVG_DIS_ALLDAMS', 'PPTAVG_BASIN', 'HIRES_LENTIC_PCT','T_AVG_BASIN',
+    'T_MAX_BASIN','T_MAXSTD_BASIN', 'NDAMS_2009', 'ELEV_MEAN_M_BASIN']
+```
+
+4. Run the following code in an `sh` (e.g., `bash`) terminal to train the LSTM and predict stream temperature.
+A GPU and 256GB of memory are strongly recommended.
 ```sh
-conda activate lstm_tq
+# in bash or similar:
 python StreamTemp-Integ.py
 ```
 
+5. Extract results. 
 
 
 ## Conda environment preparation
 
-You shouldn't need to run this, but here's how the conda environment YAML was prepared:
+You may not need to run this yourself, but here's how the conda environment YAML was prepared:
 ```sh
 # update and configure conda
 conda update -n base -c defaults conda
@@ -50,9 +115,10 @@ conda config --prepend channels pytorch
 conda create -n lstm_tq
 conda activate lstm_tq
 conda install python matplotlib=2.2.0 basemap numpy pandas scipy time statsmodels pyarrow pytorch=1.2.0
+pip install sciencebasepy
 
 # export to YAML:
-conda env export -n lstm_tq | grep -v "^prefix: " > condaenv_lstm_tq.yml
+conda env export -n lstm_tq | grep -v "^prefix: " > condaenv_lstm_linux.yml
 ```
 
 Current error with EPOCH = saveEPOCH = TestEPOCH = 5 instead of 2000:
