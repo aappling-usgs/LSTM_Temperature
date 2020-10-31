@@ -66,6 +66,21 @@ forcingso[(forcingso['datetime'] >='2010-10-01') & (forcingso['datetime'] <= '20
 
 ```
 
+I'm currently getting this error when I try to use the reprocessed data:
+```sh
+$ python StreamTemp-Integ.py 
+loading package hydroDL
+random seed updated!
+Traceback (most recent call last):
+  File "StreamTemp-Integ.py", line 129, in <module>
+    df, x, y, c = master.loadData(optData, TempTarget, forcing_path, attr_path, out)  # df: CAMELS dataframe; x: forcings; y: streamflow obs; c:attributes
+  File "/caldera/projects/usgs/water/iidd/datasci/psu/LSTM_Temperature/hydroDL/master/master.py", line 186, in loadData
+    rmNan=optData['rmNan'][0])
+  File "/caldera/projects/usgs/water/iidd/datasci/psu/LSTM_Temperature/hydroDL/data/camels.py", line 528, in getDataTs
+    x[k, :, :] = data
+ValueError: could not broadcast input array from shape (10286,7) into shape (14610,7)
+```
+
 3. Edit lines 36-48 in hydroDL/data/camels.py to set the forcing and basin attribute variables appropriate to the model of interest.
 
 For Ts,obsQ:
