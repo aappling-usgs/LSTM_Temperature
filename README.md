@@ -5,7 +5,8 @@ This README explains how to use the provided data and code in this data release 
 ### Configure software environment
 
 Create and activate the conda environment with all necessary software packages. Choose the `condaenv_lstm_xx.yml` file that fits your operating system, or create your own using code from the "Conda environment preparation" section below
-```
+```shell script
+# [in a shell]
 conda update -n base -c defaults conda
 conda env create -f condaenv_lstm_linux.yml -n lstm_tq
 conda activate lstm_tq
@@ -16,8 +17,8 @@ conda activate lstm_tq
 Steps to acquire the data to run this code:
 
 1. Download files from ScienceBase. This can be done using the ScienceBase browser interface or using the `sciencebasepy` python package as follows:
-```py
-# in python:
+```python
+# [in python]
 import os
 import sciencebasepy
 from zipfile import ZipFile
@@ -33,8 +34,8 @@ ZipFile('scratch/datarelease/weather_drivers.zip', 'r').extractall('scratch/data
 ```
 
 2. Convert data files from csv to pandas:
-```py
-# in python:
+```python
+# [in python]
 import pandas as pd
 import numpy as np
 
@@ -67,7 +68,8 @@ forcingso[(forcingso['datetime'] >='2010-10-01') & (forcingso['datetime'] <= '20
 ```
 
 I'm currently getting this error when I try to use the reprocessed data:
-```sh
+```shell script
+# [in a shell]
 $ python StreamTemp-Integ.py 
 loading package hydroDL
 random seed updated!
@@ -81,28 +83,98 @@ Traceback (most recent call last):
 ValueError: could not broadcast input array from shape (10286,7) into shape (14610,7)
 ```
 
+Same error after deleting some comments and setting `tRange = tRangeobs = [20100101, 20161001]` instead of `[19800101, 20200101]`:
+```
+Traceback (most recent call last):
+  File "StreamTemp-Integ.py", line 129, in <module>
+    df, x, y, c = master.loadData(optData, TempTarget, forcing_path, attr_path, out)  # df: CAMELS dataframe; x: forcings; y: streamflow obs; c:attributes
+  File "/caldera/projects/usgs/water/iidd/datasci/psu/LSTM_Temperature/hydroDL/master/master.py", line 186, in loadData
+    rmNan=optData['rmNan'][0])
+  File "/caldera/projects/usgs/water/iidd/datasci/psu/LSTM_Temperature/hydroDL/data/camels.py", line 493, in getDataTs
+    x[k, :, :] = data
+ValueError: could not broadcast input array from shape (2296,7) into shape (2465,7)
+```
+and after correcting `20100101` to `20101001` I no longer hit that error, now get
+```
+Traceback (most recent call last):
+  File "StreamTemp-Integ.py", line 137, in <module>
+    model = rnn.CudnnLstmModel(nx=nx, ny=ny, hiddenSize=HIDDENSIZE)
+  File "/caldera/projects/usgs/water/iidd/datasci/psu/LSTM_Temperature/hydroDL/model/rnn.py", line 361, in __init__
+    inputSize=hiddenSize, hiddenSize=hiddenSize, dr=dr)          # for LSTM-untied:    inputSize=hiddenSize, hiddenSize=hiddenSize, dr=dr, drMethod='drW', gpu=-1)
+  File "/caldera/projects/usgs/water/iidd/datasci/psu/LSTM_Temperature/hydroDL/model/rnn.py", line 262, in __init__
+    self.cuda()
+  File "/home/aappling/miniconda3/envs/lstm_tq/lib/python3.6/site-packages/torch/nn/modules/module.py", line 311, in cuda
+    return self._apply(lambda t: t.cuda(device))
+  File "/caldera/projects/usgs/water/iidd/datasci/psu/LSTM_Temperature/hydroDL/model/rnn.py", line 268, in _apply
+    ret = super(CudnnLstm, self)._apply(fn)
+  File "/home/aappling/miniconda3/envs/lstm_tq/lib/python3.6/site-packages/torch/nn/modules/module.py", line 230, in _apply
+    param_applied = fn(param)
+  File "/home/aappling/miniconda3/envs/lstm_tq/lib/python3.6/site-packages/torch/nn/modules/module.py", line 311, in <lambda>
+    return self._apply(lambda t: t.cuda(device))
+RuntimeError: CUDA error: out of memory
+```
+
 3. Edit lines 36-48 in hydroDL/data/camels.py to set the forcing and basin attribute variables appropriate to the model of interest.
 
 For Ts,obsQ:
-```py
+```python
 forcingLst = ['dayl(s)', 'prcp(mm/day)', 'srad(W/m2)', 'tmax(C)', 'tmin(C)', 'vp(Pa)', '00060_Mean']
 ```
 For Ts,noQ:
-```py
+```python
 forcingLst = ['dayl(s)', 'prcp(mm/day)', 'srad(W/m2)', 'tmax(C)', 'tmin(C)', 'vp(Pa)']
 ```
 For Ts,simQ:
-```py
+```python
 forcingLst = ['dayl(s)', 'prcp(mm/day)', 'srad(W/m2)', 'tmax(C)', 'tmin(C)', 'vp(Pa)', 'combine_discharge']
 ```
 
 For all three models:
-```py
+```python
 attrLstSel = [
     'DRAIN_SQKM', 'STREAMS_KM_SQ_KM', 'STOR_NID_2009', 'FORESTNLCD06', 'PLANTNLCD06', 'SLOPE_PCT',
     'RAW_DIS_NEAREST_MAJ_DAM', 'PERDUN', 'RAW_DIS_NEAREST_DAM', 'RAW_AVG_DIS_ALL_MAJ_DAMS', 'T_MIN_BASIN',
-    'T_MINSTD_BASIN', 'RH_BASIN', 'RAW_AVG_DIS_ALLDAMS', 'PPTAVG_BASIN', 'HIRES_LENTIC_PCT','T_AVG_BASIN',
+    'T_MINSTD_BASIN', 'RH_BASIN', 'RAW_AVG_DIS_ALLDAMS', 'PPTAVG_BASIN', 'HIRES_LENTIC_PCT', 'T_AVG_BASIN',
     'T_MAX_BASIN','T_MAXSTD_BASIN', 'NDAMS_2009', 'ELEV_MEAN_M_BASIN']
+```
+
+In contrast, the discharge model would have used:
+```python
+# attrLstSel = ['DRAIN_SQKM', 'PPTAVG_BASIN', 'T_AVG_BASIN', 'T_MAX_BASIN',
+#        'T_MAXSTD_BASIN', 'T_MIN_BASIN', 'T_MINSTD_BASIN', 'RH_BASIN',
+#        'STREAMS_KM_SQ_KM', 'PERDUN', 'HIRES_LENTIC_PCT', 'NDAMS_2009',
+#        'STOR_NID_2009', 'FORESTNLCD06', 'PLANTNLCD06', 'ELEV_MEAN_M_BASIN',
+#        'SLOPE_PCT', 'RAW_DIS_NEAREST_DAM', 'RAW_AVG_DIS_ALLDAMS',
+#        'RAW_DIS_NEAREST_MAJ_DAM', 'RAW_AVG_DIS_ALL_MAJ_DAMS',
+#        'MAJ_NDAMS_2009', 'POWER_NUM_PTS', 'POWER_SUM_MW', 'lat', 'lon',
+#        'HYDRO_DISTURB_INDX', 'BFI_AVE', 'FRAGUN_BASIN', 'DEVNLCD06',
+#        'PERMAVE', 'RFACT', 'BARRENNLCD06', 'DECIDNLCD06', 'EVERGRNLCD06',
+#        'MIXEDFORNLCD06', 'SHRUBNLCD06', 'GRASSNLCD06', 'WOODYWETNLCD06',
+#        'EMERGWETNLCD06', 'GEOL_REEDBUSH_DOM_PCT',
+#        'STRAHLER_MAX', 'MAINSTEM_SINUOUSITY', 'REACHCODE', 'ARTIFPATH_PCT',
+#        'ARTIFPATH_MAINSTEM_PCT', 'PERHOR', 'TOPWET', 'CONTACT', 'CANALS_PCT',
+#        'RAW_AVG_DIS_ALLCANALS', 'NPDES_MAJ_DENS', 'RAW_AVG_DIS_ALL_MAJ_NPDES',
+#        'FRESHW_WITHDRAWAL', 'PCT_IRRIG_AG', 'ROADS_KM_SQ_KM',
+#        'PADCAT1_PCT_BASIN', 'PADCAT2_PCT_BASIN']
+```
+or possibly
+```python
+############# Streamflow prediction for CONUS scale  ##########################
+# attrLstSel = ['ELEV_MEAN_M_BASIN', 'SLOPE_PCT', 'DRAIN_SQKM',
+#       'HYDRO_DISTURB_INDX', 'STREAMS_KM_SQ_KM', 'BFI_AVE', 'NDAMS_2009',
+#       'STOR_NID_2009', 'RAW_DIS_NEAREST_DAM', 'FRAGUN_BASIN', 'DEVNLCD06',
+#       'FORESTNLCD06', 'PLANTNLCD06', 'PERMAVE', 'RFACT',
+#       'PPTAVG_BASIN', 'BARRENNLCD06', 'DECIDNLCD06', 'EVERGRNLCD06',
+#       'MIXEDFORNLCD06', 'SHRUBNLCD06', 'GRASSNLCD06', 'WOODYWETNLCD06',
+#       'EMERGWETNLCD06', 'GEOL_REEDBUSH_DOM_PCT',
+#        'STRAHLER_MAX', 'MAINSTEM_SINUOUSITY', 'REACHCODE', 'ARTIFPATH_PCT',
+#       'ARTIFPATH_MAINSTEM_PCT', 'HIRES_LENTIC_PCT', 'PERDUN', 'PERHOR',
+#       'TOPWET', 'CONTACT', 'CANALS_PCT', 'RAW_AVG_DIS_ALLCANALS',
+#        'NPDES_MAJ_DENS', 'RAW_AVG_DIS_ALL_MAJ_NPDES',
+#       'RAW_AVG_DIS_ALL_MAJ_DAMS', 'FRESHW_WITHDRAWAL', 'PCT_IRRIG_AG',
+#       'POWER_NUM_PTS', 'POWER_SUM_MW', 'ROADS_KM_SQ_KM', 'PADCAT1_PCT_BASIN',
+#       'PADCAT2_PCT_BASIN']   # 'GEOL_REEDBUSH_SITE', , 'AWCAVE'
+##############################################################################
 ```
 
 4. Run the following code in an `sh` (e.g., `bash`) terminal to train the LSTM and predict stream temperature.
