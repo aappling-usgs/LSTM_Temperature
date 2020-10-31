@@ -1,8 +1,9 @@
 import sys
 sys.path.append('../')
+import matplotlib.pyplot as plt
+plt.switch_backend('agg')
 from hydroDL import master, utils
 from hydroDL.master import default
-import matplotlib.pyplot as plt
 from hydroDL.data import camels
 from hydroDL.model import rnn, crit, train
 from hydroDL.post import plot, stat
