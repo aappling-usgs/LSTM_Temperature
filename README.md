@@ -23,95 +23,50 @@ import os
 import sciencebasepy
 from zipfile import ZipFile
 sb = sciencebasepy.SbSession()
-sb.login(username, password) # enter your username and password
-os.mkdir('scratch/datarelease')
-sb.get_item_files(sb.get_item('5f986594d34e198cb77ff084'), 'scratch/datarelease') # temperature and flow observations
-sb.get_item_files(sb.get_item('5f9865abd34e198cb77ff086'), 'scratch/datarelease') # model drivers and basin attributes
-sb.get_item_files(sb.get_item('5f9865e5d34e198cb77ff08a'), 'scratch/datarelease') # flow predictions
+sb.login(username, password) # enter your username and password. this is only necessary before the data are made public
+os.mkdir('datarelease')
+sb.get_item_files(sb.get_item('5f908db182ce720ee2d0fef9'), 'datarelease') # gage locations
+sb.get_item_files(sb.get_item('5f986594d34e198cb77ff084'), 'datarelease') # temperature and flow observations
+sb.get_item_files(sb.get_item('5f9865abd34e198cb77ff086'), 'datarelease') # model drivers and basin attributes
+sb.get_item_files(sb.get_item('5f9865e5d34e198cb77ff08a'), 'datarelease') # flow predictions
 
 # Extract the zipfiles
-ZipFile('scratch/datarelease/weather_drivers.zip', 'r').extractall('scratch/datarelease')
+ZipFile('datarelease/01_gage_locations.zip', 'r').extractall('datarelease')
+ZipFile('datarelease/weather_drivers.zip', 'r').extractall('datarelease')
 ```
 
 2. Convert data files from csv to pandas:
 ```python
 # [in python]
 import pandas as pd
+import shapefile
 import numpy as np
 
-# read the attributes csv file and save as feather
-attr = pd.read_csv('scratch/datarelease/AT_basin_attributes.csv')
-attr.to_feather('scratch/SNTemp/Forcing/attr_new/no_dam_attr_temp60%_days118sites.feather')
+# read and combine the basin coordinates and attributes files; save as feather
+coords_shp = shapefile.Reader('datarelease/gage_locations.shp')
+coords = pd.DataFrame(coords_shp.records(), columns=['site_no', 'site_name', 'lat', 'long']).\
+    rename(columns={'long': 'lon'})
+attr = pd.read_csv('datarelease/AT_basin_attributes.csv', dtype={'site_no': 'str'}).\
+    merge(coords, how='outer')
+attr['site_no'] = pd.to_numeric(attr['site_no'])
+attr.to_feather('input/no_dam_attr_temp60%_days118sites.feather')
 
 # read the component forcing files
-weather = pd.read_csv('scratch/datarelease/weather_drivers.csv', parse_dates = ['datetime'])
-wtemp = pd.read_csv('scratch/datarelease/temperature_observations.csv', parse_dates = ['datetime']).\
+weather = pd.read_csv('datarelease/weather_drivers.csv', parse_dates = ['datetime'])
+wtemp = pd.read_csv('datarelease/temperature_observations.csv', parse_dates = ['datetime']).\
     rename(columns={'temp_degC': '00010_Mean'})
-discharge = pd.read_csv('scratch/datarelease/flow_observations.csv', parse_dates = ['datetime']).\
+discharge = pd.read_csv('datarelease/flow_observations.csv', parse_dates = ['datetime']).\
     rename(columns={'discharge_cfs': '00060_Mean'})
-sim_discharge = pd.read_csv('scratch/datarelease/pred_discharge.csv', parse_dates = ['datetime'])
+sim_discharge = pd.read_csv('datarelease/pred_discharge.csv', parse_dates = ['datetime'])
 
 # combine forcings into a single file and save
-forcings = pd.merge(weather, wtemp, how='outer').merge(discharge, how='outer').merge(sim_discharge, how='left')
+forcings = pd.merge(weather, wtemp, how='outer').\
+    merge(discharge, how='outer').\
+    merge(sim_discharge, how='left')
 forcings['combine_discharge'] = np.where(
     forcings['datetime'] >= np.datetime64('2014-10-01'),
-    forcings['sim_discharge_cfs'], forcings['00060_Mean'])
-forcings.to_feather('scratch/SNTemp/Forcing/Forcing_new/no_dam_forcing_60%_days118sites.feather')
-
-#attrf = pd.read_feather('scratch/no_dam_attr_temp60%_days118sites.feather')
-#forcingsf = pd.read_feather('scratch/no_dam_forcing_60%_days118sites.feather')
-
-attro = pd.read_csv('../rahmani_erl_data_release/in_data/Data - ERL paper/Forcing_attrFiles/no_dam_attr_temp60__days118sites.csv')
-forcingso = pd.read_csv('../rahmani_erl_data_release/in_data/Data - ERL paper/Forcing_attrFiles/no_dam_forcing_60__days118sites.csv', parse_dates=['datetime'])
-forcingso[(forcingso['datetime'] >='2010-10-01') & (forcingso['datetime'] <= '2016-09-30')]
-
-```
-
-I'm currently getting this error when I try to use the reprocessed data:
-```shell script
-# [in a shell]
-$ python StreamTemp-Integ.py 
-loading package hydroDL
-random seed updated!
-Traceback (most recent call last):
-  File "StreamTemp-Integ.py", line 129, in <module>
-    df, x, y, c = master.loadData(optData, TempTarget, forcing_path, attr_path, out)  # df: CAMELS dataframe; x: forcings; y: streamflow obs; c:attributes
-  File "/caldera/projects/usgs/water/iidd/datasci/psu/LSTM_Temperature/hydroDL/master/master.py", line 186, in loadData
-    rmNan=optData['rmNan'][0])
-  File "/caldera/projects/usgs/water/iidd/datasci/psu/LSTM_Temperature/hydroDL/data/camels.py", line 528, in getDataTs
-    x[k, :, :] = data
-ValueError: could not broadcast input array from shape (10286,7) into shape (14610,7)
-```
-
-Same error after deleting some comments and setting `tRange = tRangeobs = [20100101, 20161001]` instead of `[19800101, 20200101]`:
-```
-Traceback (most recent call last):
-  File "StreamTemp-Integ.py", line 129, in <module>
-    df, x, y, c = master.loadData(optData, TempTarget, forcing_path, attr_path, out)  # df: CAMELS dataframe; x: forcings; y: streamflow obs; c:attributes
-  File "/caldera/projects/usgs/water/iidd/datasci/psu/LSTM_Temperature/hydroDL/master/master.py", line 186, in loadData
-    rmNan=optData['rmNan'][0])
-  File "/caldera/projects/usgs/water/iidd/datasci/psu/LSTM_Temperature/hydroDL/data/camels.py", line 493, in getDataTs
-    x[k, :, :] = data
-ValueError: could not broadcast input array from shape (2296,7) into shape (2465,7)
-```
-and after correcting `20100101` to `20101001` I no longer hit that error, now get
-```
-Traceback (most recent call last):
-  File "StreamTemp-Integ.py", line 137, in <module>
-    model = rnn.CudnnLstmModel(nx=nx, ny=ny, hiddenSize=HIDDENSIZE)
-  File "/caldera/projects/usgs/water/iidd/datasci/psu/LSTM_Temperature/hydroDL/model/rnn.py", line 361, in __init__
-    inputSize=hiddenSize, hiddenSize=hiddenSize, dr=dr)          # for LSTM-untied:    inputSize=hiddenSize, hiddenSize=hiddenSize, dr=dr, drMethod='drW', gpu=-1)
-  File "/caldera/projects/usgs/water/iidd/datasci/psu/LSTM_Temperature/hydroDL/model/rnn.py", line 262, in __init__
-    self.cuda()
-  File "/home/aappling/miniconda3/envs/lstm_tq/lib/python3.6/site-packages/torch/nn/modules/module.py", line 311, in cuda
-    return self._apply(lambda t: t.cuda(device))
-  File "/caldera/projects/usgs/water/iidd/datasci/psu/LSTM_Temperature/hydroDL/model/rnn.py", line 268, in _apply
-    ret = super(CudnnLstm, self)._apply(fn)
-  File "/home/aappling/miniconda3/envs/lstm_tq/lib/python3.6/site-packages/torch/nn/modules/module.py", line 230, in _apply
-    param_applied = fn(param)
-  File "/home/aappling/miniconda3/envs/lstm_tq/lib/python3.6/site-packages/torch/nn/modules/module.py", line 311, in <lambda>
-    return self._apply(lambda t: t.cuda(device))
-RuntimeError: CUDA error: out of memory
+    forcings['sim_discharge_cfs'], forcings['00060_Mean']) # combine_discharge has observed Q to train, sim Q to test
+forcings.to_feather('input/no_dam_forcing_60%_days118sites.feather')
 ```
 
 3. Edit lines 36-48 in hydroDL/data/camels.py to set the forcing and basin attribute variables appropriate to the model of interest.
@@ -127,54 +82,6 @@ forcingLst = ['dayl(s)', 'prcp(mm/day)', 'srad(W/m2)', 'tmax(C)', 'tmin(C)', 'vp
 For Ts,simQ:
 ```python
 forcingLst = ['dayl(s)', 'prcp(mm/day)', 'srad(W/m2)', 'tmax(C)', 'tmin(C)', 'vp(Pa)', 'combine_discharge']
-```
-
-For all three models:
-```python
-attrLstSel = [
-    'DRAIN_SQKM', 'STREAMS_KM_SQ_KM', 'STOR_NID_2009', 'FORESTNLCD06', 'PLANTNLCD06', 'SLOPE_PCT',
-    'RAW_DIS_NEAREST_MAJ_DAM', 'PERDUN', 'RAW_DIS_NEAREST_DAM', 'RAW_AVG_DIS_ALL_MAJ_DAMS', 'T_MIN_BASIN',
-    'T_MINSTD_BASIN', 'RH_BASIN', 'RAW_AVG_DIS_ALLDAMS', 'PPTAVG_BASIN', 'HIRES_LENTIC_PCT', 'T_AVG_BASIN',
-    'T_MAX_BASIN','T_MAXSTD_BASIN', 'NDAMS_2009', 'ELEV_MEAN_M_BASIN']
-```
-
-In contrast, the discharge model would have used:
-```python
-# attrLstSel = ['DRAIN_SQKM', 'PPTAVG_BASIN', 'T_AVG_BASIN', 'T_MAX_BASIN',
-#        'T_MAXSTD_BASIN', 'T_MIN_BASIN', 'T_MINSTD_BASIN', 'RH_BASIN',
-#        'STREAMS_KM_SQ_KM', 'PERDUN', 'HIRES_LENTIC_PCT', 'NDAMS_2009',
-#        'STOR_NID_2009', 'FORESTNLCD06', 'PLANTNLCD06', 'ELEV_MEAN_M_BASIN',
-#        'SLOPE_PCT', 'RAW_DIS_NEAREST_DAM', 'RAW_AVG_DIS_ALLDAMS',
-#        'RAW_DIS_NEAREST_MAJ_DAM', 'RAW_AVG_DIS_ALL_MAJ_DAMS',
-#        'MAJ_NDAMS_2009', 'POWER_NUM_PTS', 'POWER_SUM_MW', 'lat', 'lon',
-#        'HYDRO_DISTURB_INDX', 'BFI_AVE', 'FRAGUN_BASIN', 'DEVNLCD06',
-#        'PERMAVE', 'RFACT', 'BARRENNLCD06', 'DECIDNLCD06', 'EVERGRNLCD06',
-#        'MIXEDFORNLCD06', 'SHRUBNLCD06', 'GRASSNLCD06', 'WOODYWETNLCD06',
-#        'EMERGWETNLCD06', 'GEOL_REEDBUSH_DOM_PCT',
-#        'STRAHLER_MAX', 'MAINSTEM_SINUOUSITY', 'REACHCODE', 'ARTIFPATH_PCT',
-#        'ARTIFPATH_MAINSTEM_PCT', 'PERHOR', 'TOPWET', 'CONTACT', 'CANALS_PCT',
-#        'RAW_AVG_DIS_ALLCANALS', 'NPDES_MAJ_DENS', 'RAW_AVG_DIS_ALL_MAJ_NPDES',
-#        'FRESHW_WITHDRAWAL', 'PCT_IRRIG_AG', 'ROADS_KM_SQ_KM',
-#        'PADCAT1_PCT_BASIN', 'PADCAT2_PCT_BASIN']
-```
-or possibly
-```python
-############# Streamflow prediction for CONUS scale  ##########################
-# attrLstSel = ['ELEV_MEAN_M_BASIN', 'SLOPE_PCT', 'DRAIN_SQKM',
-#       'HYDRO_DISTURB_INDX', 'STREAMS_KM_SQ_KM', 'BFI_AVE', 'NDAMS_2009',
-#       'STOR_NID_2009', 'RAW_DIS_NEAREST_DAM', 'FRAGUN_BASIN', 'DEVNLCD06',
-#       'FORESTNLCD06', 'PLANTNLCD06', 'PERMAVE', 'RFACT',
-#       'PPTAVG_BASIN', 'BARRENNLCD06', 'DECIDNLCD06', 'EVERGRNLCD06',
-#       'MIXEDFORNLCD06', 'SHRUBNLCD06', 'GRASSNLCD06', 'WOODYWETNLCD06',
-#       'EMERGWETNLCD06', 'GEOL_REEDBUSH_DOM_PCT',
-#        'STRAHLER_MAX', 'MAINSTEM_SINUOUSITY', 'REACHCODE', 'ARTIFPATH_PCT',
-#       'ARTIFPATH_MAINSTEM_PCT', 'HIRES_LENTIC_PCT', 'PERDUN', 'PERHOR',
-#       'TOPWET', 'CONTACT', 'CANALS_PCT', 'RAW_AVG_DIS_ALLCANALS',
-#        'NPDES_MAJ_DENS', 'RAW_AVG_DIS_ALL_MAJ_NPDES',
-#       'RAW_AVG_DIS_ALL_MAJ_DAMS', 'FRESHW_WITHDRAWAL', 'PCT_IRRIG_AG',
-#       'POWER_NUM_PTS', 'POWER_SUM_MW', 'ROADS_KM_SQ_KM', 'PADCAT1_PCT_BASIN',
-#       'PADCAT2_PCT_BASIN']   # 'GEOL_REEDBUSH_SITE', , 'AWCAVE'
-##############################################################################
 ```
 
 4. Run the following code in an `sh` (e.g., `bash`) terminal to train the LSTM and predict stream temperature.
@@ -208,50 +115,10 @@ pip install sciencebasepy
 conda env export -n lstm_tq | grep -v "^prefix: " > condaenv_lstm_linux.yml
 ```
 
-Current error with EPOCH = saveEPOCH = TestEPOCH = 5 instead of 2000:
-```
-loading package hydroDL
-random seed updated!
-Local calibration kernel is shut down!
-write master file /Users/aappling/Documents/Code/Code-PGDL/LSTM_Temperature/TempDemo/FirstRun/epochs5_batch59_rho365_hiddensize100_Tstart20101001_Tend20141001/All-2010-2016/master.json
-/Users/aappling/opt/anaconda3/envs/lstm_tq/lib/python3.6/site-packages/torch/nn/functional.py:1350: UserWarning: nn.functional.sigmoid is deprecated. Use torch.sigmoid instead.
-  warnings.warn("nn.functional.sigmoid is deprecated. Use torch.sigmoid instead.")
-/Users/aappling/opt/anaconda3/envs/lstm_tq/lib/python3.6/site-packages/torch/nn/functional.py:1339: UserWarning: nn.functional.tanh is deprecated. Use torch.tanh instead.
-  warnings.warn("nn.functional.tanh is deprecated. Use torch.tanh instead.")
-Epoch 1 Loss 0.450 time 34.59
-Epoch 2 Loss 0.277 time 34.04
-Epoch 3 Loss 0.253 time 31.35
-Epoch 4 Loss 0.241 time 31.38
-Epoch 5 Loss 0.232 time 30.79
-read master file /Users/aappling/Documents/Code/Code-PGDL/LSTM_Temperature/TempDemo/FirstRun/epochs5_batch59_rho365_hiddensize100_Tstart20101001_Tend20141001/All-2010-2016/master.json
-read master file /Users/aappling/Documents/Code/Code-PGDL/LSTM_Temperature/TempDemo/FirstRun/epochs5_batch59_rho365_hiddensize100_Tstart20101001_Tend20141001/All-2010-2016/master.json
-output files: ['/Users/aappling/Documents/Code/Code-PGDL/LSTM_Temperature/TempDemo/FirstRun/epochs5_batch59_rho365_hiddensize100_Tstart20101001_Tend20141001/All-2010-2016/All_20141001_20161001_ep5_Streamflow.csv']
-Runing new results
-Local calibration kernel is shut down!
-Traceback (most recent call last):
-  File "/Users/aappling/Documents/Code/Code-PGDL/LSTM_Temperature/StreamTemp-Integ.py", line 189, in <module>
-    df, pred, obs, x = master.test(out, TempTarget, forcing_path, attr_path, tRange=tRange, subset=subset, basinnorm=False, epoch=TestEPOCH, reTest=True)
-  File "/Users/aappling/Documents/Code/Code-PGDL/LSTM_Temperature/hydroDL/master/master.py", line 565, in test
-    model, x, c, batchSize=batchSize, filePathLst=filePathLst, doMC=doMC)
-  File "/Users/aappling/Documents/Code/Code-PGDL/LSTM_Temperature/hydroDL/model/train.py", line 162, in testModel
-    model.train(mode=False)
-  File "/Users/aappling/opt/anaconda3/envs/lstm_tq/lib/python3.6/site-packages/torch/nn/modules/module.py", line 1070, in train
-    module.train(mode)
-TypeError: 'bool' object is not callable
-```
-
 ## Environment used in manuscript
 
-The python environment 
-# LSTM_Temperature Modeling
-Using LSTM for stream temperature modeling.
-main code is StreamTemp_integ.py.
-copy forcing pandas files in scratch/SNTemp/Forcing/Forcing_new
-copy attribute pandas files in scratch/SNTemp/Forcing/attr_new
-
+The python environment used to generate the precise outputs in this model was:
 ```
-# packages in environment :
-#
 # Name                    Version                   Build  Channel
 appdirs                   1.4.4                    pypi_0    pypi
 argon2-cffi               20.1.0           py37he774522_1  
@@ -375,4 +242,3 @@ zipp                      3.1.0                      py_0
 zlib                      1.2.11               h62dcd97_4  
 zstd                      1.4.5                h04227a9_0  
 ```
-Note: you may need to restart the kernel to use updated packages.
