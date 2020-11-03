@@ -1,6 +1,5 @@
 import torch
 import numpy as np
-import RMSEbasin
 import time
 
 class SigmaLoss(torch.nn.Module):
