@@ -26,11 +26,11 @@ interfaceOpt = 1
 # 2: test trained models
 Action = [0, 2]
 # Set hyperparameters for training or retraining
-EPOCH = 10
+EPOCH = 2000
 BATCH_SIZE = 59
 RHO = 365
 HIDDENSIZE = 100
-saveEPOCH = 10   # it was 50 then 100
+saveEPOCH = 100   # it was 50 then 100
 Ttrain = [20101001, 20141001]  # Training period. it was [19851001, 19951001]
 seed = None   # fixing the random seed. None means it is not fixed
 
@@ -154,7 +154,7 @@ if 0 in Action:
 
 # Test models
 if 2 in Action:
-    TestEPOCH = 10     # it was 200  # choose the model to test after trained "TestEPOCH" epoches
+    TestEPOCH = 2000     # it was 200  # choose the model to test after trained "TestEPOCH" epoches
     # generate a folder name list containing all the tested model output folders
     caseLst = [Qforcing]#, '494-B247-H100','460-B230-H100' ,'327-B163-H100','258-B129-H100' ,'169-B169-H100', '29-B29-H100']
 
