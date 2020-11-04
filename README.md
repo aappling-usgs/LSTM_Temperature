@@ -26,9 +26,9 @@ sb = sciencebasepy.SbSession()
 sb.login(username, password) # enter your username and password. this is only necessary before the data are made public
 os.mkdir('datarelease')
 sb.get_item_files(sb.get_item('5f908db182ce720ee2d0fef9'), 'datarelease') # gage locations
-sb.get_item_files(sb.get_item('5f986594d34e198cb77ff084'), 'datarelease') # temperature and flow observations
+sb.get_item_files(sb.get_item('5f986594d34e198cb77ff084'), 'datarelease') # temperature observations
 sb.get_item_files(sb.get_item('5f9865abd34e198cb77ff086'), 'datarelease') # model drivers and basin attributes
-sb.get_item_files(sb.get_item('5f9865e5d34e198cb77ff08a'), 'datarelease') # flow predictions
+sb.get_item_files(sb.get_item('5f9865e5d34e198cb77ff08a'), 'datarelease') # temperature predictions
 
 # Extract the zipfiles
 ZipFile('datarelease/01_gage_locations.zip', 'r').extractall('datarelease')
@@ -54,9 +54,9 @@ attr.to_feather('input/no_dam_attr_temp60%_days118sites.feather')
 # read the component forcing files
 weather = pd.read_csv('datarelease/weather_drivers.csv', parse_dates = ['datetime'])
 wtemp = pd.read_csv('datarelease/temperature_observations.csv', parse_dates = ['datetime']).\
-    rename(columns={'temp_degC': '00010_Mean'})
-discharge = pd.read_csv('datarelease/flow_observations.csv', parse_dates = ['datetime']).\
-    rename(columns={'discharge_cfs': '00060_Mean'})
+    rename(columns={'wtemp(C)': '00010_Mean'})
+discharge = pd.read_csv('datarelease/obs_discharge.csv', parse_dates = ['datetime']).\
+    rename(columns={'discharge(cfs)': '00060_Mean'})
 sim_discharge = pd.read_csv('datarelease/pred_discharge.csv', parse_dates = ['datetime'])
 
 # combine forcings into a single file and save
@@ -65,11 +65,11 @@ forcings = pd.merge(weather, wtemp, how='outer').\
     merge(sim_discharge, how='left')
 forcings['combine_discharge'] = np.where(
     forcings['datetime'] >= np.datetime64('2014-10-01'),
-    forcings['sim_discharge_cfs'], forcings['00060_Mean']) # combine_discharge has observed Q to train, sim Q to test
+    forcings['sim_discharge(cfs)'], forcings['00060_Mean']) # combine_discharge has observed Q to train, sim Q to test
 forcings.to_feather('input/no_dam_forcing_60%_days118sites.feather')
 ```
 
-3. Edit lines 36-48 in hydroDL/data/camels.py to set the forcing and basin attribute variables appropriate to the model of interest.
+3. Edit lines 19-21: in hydroDL/data/camels.py to set the forcing and basin attribute variables appropriate to the model of interest.
 
 For Ts,obsQ:
 ```python
@@ -83,6 +83,8 @@ For Ts,simQ:
 ```python
 forcingLst = ['dayl(s)', 'prcp(mm/day)', 'srad(W/m2)', 'tmax(C)', 'tmin(C)', 'vp(Pa)', 'combine_discharge']
 ```
+
+When switching between the above model options, delete input/Statistics_basinnorm.json before running the next model.
 
 4. Run the following code in an `sh` (e.g., `bash`) terminal to train the LSTM and predict stream temperature.
 A GPU and 256GB of memory are strongly recommended.
