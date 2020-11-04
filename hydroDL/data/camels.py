@@ -16,25 +16,6 @@ tLst = utils.time.tRange2Array(tRange)
 tLstobs = utils.time.tRange2Array(tRangeobs)
 nt = len(tLst)
 ntobs = len(tLstobs)
-
-###############  for a paper with two upstream node with temp data  ###############
-#forcingLst = ['Q3Tw', 'Q7Tw', 'Q3Q', 'Q5Q', 'Q7Q',
- #      'Q9Q', 'Btamean', 'V', 'Pressure', 'SkyCov', 'SR.sum', 'Precip',
-#       ]
-###################################################################################
-
-###############   for stream_temp Module  ####################
-##forcingLst = ['basin_ccov', 'basin_humid', 'basin_rain',
-  ##     'basin_tave_air', 'basin_gwflow', 'basin_potet', 'basin_sroff',
-    ##   'basin_ssflow', 'basin_swrad', 'basin_tave_gw',
-      ## 'basin_tave_ss', 'network_width','outlet_width', 'outlet_outflow', 'gw_tau', 'ss_tau']  #, 'gw_tau', 'ss_tau' 'obs_discharge'
-
-##attrLstSel = ['hru_elev', 'hru_slope', 'network_elev',
-  ##     'outlet_elev', 'network_length', 'network_slope', 'outlet_slope',
-    ##   'basin_area']
-################################################################
-
-##############   Water Temperature for CONUS scale  ##########
 forcingLst = ['dayl(s)', 'prcp(mm/day)', 'srad(W/m2)', 'tmax(C)', 'tmin(C)', 'vp(Pa)', '00060_Mean'] # for Ts,obsQ
 # forcingLst = ['dayl(s)', 'prcp(mm/day)', 'srad(W/m2)', 'tmax(C)', 'tmin(C)', 'vp(Pa)'] # for Ts,noQ
 # forcingLst = ['dayl(s)', 'prcp(mm/day)', 'srad(W/m2)', 'tmax(C)', 'tmin(C)', 'vp(Pa)', 'combine_discharge'] # for Ts,simQ

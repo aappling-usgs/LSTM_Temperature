@@ -8,19 +8,12 @@ from hydroDL.data import camels
 from hydroDL.model import rnn, crit, train
 from hydroDL.post import plot, stat
 
-
 import numpy as np
 import os
 import torch
 import pandas as pd
 import math
 import random
-
-# forcing_list = ['forcing_60%_days_306sites.feather'
-#                 ]
-# attr_list = ['attr_temp60%_days_306sites.feather'
-#              ]
-
 
 # Options for different interface
 interfaceOpt = 1
@@ -30,34 +23,29 @@ interfaceOpt = 1
 
 # Options for training and testing
 # 0: train base model
-
 # 2: test trained models
 Action = [0, 2]
 # Set hyperparameters for training or retraining
-EPOCH = 30
+EPOCH = 2000
 BATCH_SIZE = 59
 RHO = 365
 HIDDENSIZE = 100
-saveEPOCH = 10   # it was 50 then 100
+saveEPOCH = 100   # it was 50 then 100
 Ttrain = [20101001, 20141001]  # Training period. it was [19851001, 19951001]
 seed = None   # fixing the random seed. None means it is not fixed
 
-###############################
+# Define target
 TempTarget = '00010_Mean'   # 'obs' or     or Q9Tw   '00010_Mean'  outlet_tave_water
-
-
-absRoot = os.getcwd()
-
 
 # Define root directory of database and output
 # Modify this based on your own location
-rootDatabase = os.path.join(os.path.sep, absRoot, 'scratch', 'SNTemp')  #  dataset root directory:
-rootOut = os.path.join(os.path.sep, absRoot, 'TempDemo', 'FirstRun')  # Model output root directory:
-
-forcing_path = os.path.join(os.path.sep, rootDatabase, 'Forcing', 'Forcing_new', 'no_dam_forcing_60%_days118sites.feather')  #
-forcing_data =[]#pd.read_feather(forcing_path)
-attr_path = os.path.join(os.path.sep, rootDatabase, 'Forcing', 'attr_new', 'no_dam_attr_temp60%_days118sites.feather')
-attr_data =[]#pd.read_feather(attr_path)
+absRoot = os.getcwd()
+rootDatabase = os.path.join(os.path.sep, absRoot, 'input')  #  dataset root directory:
+rootOut = os.path.join(os.path.sep, absRoot, 'output')  # Model output root directory:
+forcing_path = os.path.join(os.path.sep, rootDatabase, 'no_dam_forcing_60%_days118sites.feather')  #
+forcing_data = pd.read_feather(forcing_path)       
+attr_path = os.path.join(os.path.sep, rootDatabase, 'no_dam_attr_temp60%_days118sites.feather')
+attr_data = pd.read_feather(attr_path)
 camels.initcamels(forcing_data, attr_data, TempTarget, rootDatabase)  # initialize three camels module-scope variables in camels.py: dirDB, gageDict, statDict
 
 
@@ -81,17 +69,14 @@ optLoss = default.optLossRMSE
 # define training options
 optTrain = default.update(default.optTrainCamels, miniBatch=[BATCH_SIZE, RHO], nEpoch=EPOCH, saveEpoch=saveEPOCH, seed=seed)
 # define output folder for model results
-exp_name = 'TempDemo'
-exp_disp = 'FirstRun'
-
-
-save_path = os.path.join(absRoot, exp_name, exp_disp, \
-            'epochs{}_batch{}_rho{}_hiddensize{}_Tstart{}_Tend{}'.format(optTrain['nEpoch'], optTrain['miniBatch'][0],
-                                                                          optTrain['miniBatch'][1],
-                                                                          optModel['hiddenSize'],
-                                                                          optData['tRange'][0], optData['tRange'][1]))
-out = os.path.join(rootOut, save_path, 'All-2010-2016') # output folder to save results
-
+if any([x == '00060_Mean' for x in camels.forcingLst]):
+    Qforcing = 'obsQ'
+elif any([x == 'combine_discharge' for x in camels.forcingLst]):
+    Qforcing = 'simQ'
+else:
+    Qforcing = 'noQ'
+save_path = os.path.join(rootOut, Qforcing) # output folder to save raw model files
+out = save_path # output folder to save summary results
 
 
 
@@ -169,15 +154,15 @@ if 0 in Action:
 
 # Test models
 if 2 in Action:
-    TestEPOCH = 30     # it was 200  # choose the model to test after trained "TestEPOCH" epoches
+    TestEPOCH = 2000     # it was 200  # choose the model to test after trained "TestEPOCH" epoches
     # generate a folder name list containing all the tested model output folders
-    caseLst = ['All-2010-2016']#, '494-B247-H100','460-B230-H100' ,'327-B163-H100','258-B129-H100' ,'169-B169-H100', '29-B29-H100']
+    caseLst = [Qforcing]#, '494-B247-H100','460-B230-H100' ,'327-B163-H100','258-B129-H100' ,'169-B169-H100', '29-B29-H100']
 
     nDayLst = [] #[1, 3]
     for nDay in nDayLst:
         caseLst.append('All-85-95-DI' + str(nDay))
 
-    outLst = [os.path.join(rootOut, save_path, x) for x in caseLst]
+    outLst = [os.path.join(rootOut, x) for x in caseLst]
     subset = 'All'  # 'All': use all the CAMELS gages to test; Or pass the gage list
     tRange = [20141001, 20161001]  # Testing period
     predLst = list()

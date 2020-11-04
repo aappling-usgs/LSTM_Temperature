@@ -49,7 +49,7 @@ def loadModel(out, epoch=None):
 def namePred(out, tRange, subset, epoch=None, doMC=False, suffix=None):
     mDict = readMasterFile(out)
     if mDict['data']['name'] == 'hydroDL.data.camels.DataframeCamels':
-        target = ['Streamflow']
+        target = ['StreamTemp']
     else:
         target = mDict['data']['target']
     if type(target) is not list:
