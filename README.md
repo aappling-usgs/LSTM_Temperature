@@ -73,15 +73,15 @@ forcings.to_feather('input/no_dam_forcing_60%_days118sites.feather')
 
 For Ts,obsQ:
 ```python
-forcingLst = ['dayl(s)', 'prcp(mm/day)', 'srad(W/m2)', 'tmax(C)', 'tmin(C)', 'vp(Pa)', '00060_Mean']
+forcingLst = ['dayl(s/d)', 'prcp(mm/d)', 'srad(W/m2)', 'tmax(C)', 'tmin(C)', 'vp(Pa)', '00060_Mean']
 ```
 For Ts,noQ:
 ```python
-forcingLst = ['dayl(s)', 'prcp(mm/day)', 'srad(W/m2)', 'tmax(C)', 'tmin(C)', 'vp(Pa)']
+forcingLst = ['dayl(s/d)', 'prcp(mm/d)', 'srad(W/m2)', 'tmax(C)', 'tmin(C)', 'vp(Pa)']
 ```
 For Ts,simQ:
 ```python
-forcingLst = ['dayl(s)', 'prcp(mm/day)', 'srad(W/m2)', 'tmax(C)', 'tmin(C)', 'vp(Pa)', 'combine_discharge']
+forcingLst = ['dayl(s/d)', 'prcp(mm/d)', 'srad(W/m2)', 'tmax(C)', 'tmin(C)', 'vp(Pa)', 'combine_discharge']
 ```
 
 When switching between the above model options, delete input/Statistics_basinnorm.json before running the next model.
