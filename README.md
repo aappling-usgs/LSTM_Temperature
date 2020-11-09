@@ -1,10 +1,17 @@
 ## LSTM Temperature Model
 
-This README explains how to use the provided data and code in this data release to replicate the training and prediction steps for the stream temperature models (LSTM and LR) described in the paper.
+This README explains how to use the provided data and code in this data release to replicate the training and
+prediction steps for the stream temperature models (LSTM and AR2) described in the paper.
+The code may be run on Mac or Linux operating systems where the Anaconda package manager is installed.
+A CUDA-compatible GPU and 256GB of memory are strongly recommended.
 
 ### Configure software environment
 
-Create and activate the conda environment with all necessary software packages. Choose the `condaenv_lstm_xx.yml` file that fits your operating system, or create your own using code from the "Conda environment preparation" section below
+Create and activate the conda environment with all necessary software packages.
+Choose the `condaenv_lstm_xx.yml` file that fits your operating system, or create your own using code from the
+"Conda environment preparation" section below. These instructions very nearly recreate the exact
+python environment that was used to generate the results in the manuscript, and they should be
+sufficient to run the models yourself.
 ```shell script
 # [in a shell]
 conda update -n base -c defaults conda
@@ -17,84 +24,89 @@ conda activate lstm_tq
 Steps to acquire the data to run this code:
 
 1. Download files from ScienceBase. This can be done using the ScienceBase browser interface or using the `sciencebasepy` python package as follows:
-```python
-# [in python]
-import os
-import sciencebasepy
-from zipfile import ZipFile
-sb = sciencebasepy.SbSession()
-sb.login(username, password) # enter your username and password. this is only necessary before the data are made public
-os.mkdir('datarelease')
-sb.get_item_files(sb.get_item('5f908db182ce720ee2d0fef9'), 'datarelease') # gage locations
-sb.get_item_files(sb.get_item('5f986594d34e198cb77ff084'), 'datarelease') # temperature observations
-sb.get_item_files(sb.get_item('5f9865abd34e198cb77ff086'), 'datarelease') # model drivers and basin attributes
-sb.get_item_files(sb.get_item('5f9865e5d34e198cb77ff08a'), 'datarelease') # temperature predictions
-
-# Extract the zipfiles
-ZipFile('datarelease/01_gage_locations.zip', 'r').extractall('datarelease')
-ZipFile('datarelease/weather_drivers.zip', 'r').extractall('datarelease')
-```
+    ```python
+    # [in python]
+    import os
+    import sciencebasepy
+    from zipfile import ZipFile
+    sb = sciencebasepy.SbSession()
+    sb.login(username, password) # enter your username and password. this is only necessary before the data are made public
+    os.mkdir('datarelease')
+    sb.get_item_files(sb.get_item('5f908db182ce720ee2d0fef9'), 'datarelease') # gage locations
+    sb.get_item_files(sb.get_item('5f986594d34e198cb77ff084'), 'datarelease') # temperature observations
+    sb.get_item_files(sb.get_item('5f9865abd34e198cb77ff086'), 'datarelease') # model drivers and basin attributes
+    sb.get_item_files(sb.get_item('5f9865e5d34e198cb77ff08a'), 'datarelease') # temperature predictions
+    
+    # Extract the zipfiles
+    ZipFile('datarelease/gage_locations.zip', 'r').extractall('datarelease')
+    ZipFile('datarelease/weather_drivers.zip', 'r').extractall('datarelease')
+    ```
 
 2. Convert data files from csv to pandas:
-```python
-# [in python]
-import pandas as pd
-import shapefile
-import numpy as np
+    ```python
+    # [in python]
+    import pandas as pd
+    import shapefile
+    import numpy as np
+    import os
+    os.mkdir('input')
+    
+    # read and combine the basin coordinates and attributes files; save as feather
+    coords_shp = shapefile.Reader('datarelease/gage_locations.shp')
+    coords = pd.DataFrame(coords_shp.records(), columns=['site_no', 'site_name', 'lat', 'long']).\
+        rename(columns={'long': 'lon'})
+    attr = pd.read_csv('datarelease/AT_basin_attributes.csv', dtype={'site_no': 'str'}).\
+        merge(coords, how='outer')
+    attr['site_no'] = pd.to_numeric(attr['site_no'])
+    attr.to_feather('input/no_dam_attr_temp60%_days118sites.feather')
+    
+    # read the component forcing files
+    weather = pd.read_csv('datarelease/weather_drivers.csv', parse_dates = ['datetime'])
+    wtemp = pd.read_csv('datarelease/temperature_observations.csv', parse_dates = ['datetime']).\
+        rename(columns={'wtemp(C)': '00010_Mean'})
+    discharge = pd.read_csv('datarelease/obs_discharge.csv', parse_dates = ['datetime']).\
+        rename(columns={'discharge(cfs)': '00060_Mean'})
+    sim_discharge = pd.read_csv('datarelease/pred_discharge.csv', parse_dates = ['datetime'])
+    
+    # combine forcings into a single file and save
+    forcings = pd.merge(weather, wtemp, how='outer').\
+        merge(discharge, how='outer').\
+        merge(sim_discharge, how='left')
+    forcings['combine_discharge'] = np.where(
+        forcings['datetime'] >= np.datetime64('2014-10-01'),
+        forcings['sim_discharge(cfs)'], forcings['00060_Mean']) # combine_discharge has observed Q to train, sim Q to test
+    forcings.to_feather('input/no_dam_forcing_60%_days118sites.feather')
+    ```
 
-# read and combine the basin coordinates and attributes files; save as feather
-coords_shp = shapefile.Reader('datarelease/gage_locations.shp')
-coords = pd.DataFrame(coords_shp.records(), columns=['site_no', 'site_name', 'lat', 'long']).\
-    rename(columns={'long': 'lon'})
-attr = pd.read_csv('datarelease/AT_basin_attributes.csv', dtype={'site_no': 'str'}).\
-    merge(coords, how='outer')
-attr['site_no'] = pd.to_numeric(attr['site_no'])
-attr.to_feather('input/no_dam_attr_temp60%_days118sites.feather')
+3. Edit lines 19-21 in hydroDL/data/camels.py to set the forcing and basin attribute variables appropriate to the model of interest.
 
-# read the component forcing files
-weather = pd.read_csv('datarelease/weather_drivers.csv', parse_dates = ['datetime'])
-wtemp = pd.read_csv('datarelease/temperature_observations.csv', parse_dates = ['datetime']).\
-    rename(columns={'wtemp(C)': '00010_Mean'})
-discharge = pd.read_csv('datarelease/obs_discharge.csv', parse_dates = ['datetime']).\
-    rename(columns={'discharge(cfs)': '00060_Mean'})
-sim_discharge = pd.read_csv('datarelease/pred_discharge.csv', parse_dates = ['datetime'])
-
-# combine forcings into a single file and save
-forcings = pd.merge(weather, wtemp, how='outer').\
-    merge(discharge, how='outer').\
-    merge(sim_discharge, how='left')
-forcings['combine_discharge'] = np.where(
-    forcings['datetime'] >= np.datetime64('2014-10-01'),
-    forcings['sim_discharge(cfs)'], forcings['00060_Mean']) # combine_discharge has observed Q to train, sim Q to test
-forcings.to_feather('input/no_dam_forcing_60%_days118sites.feather')
-```
-
-3. Edit lines 19-21: in hydroDL/data/camels.py to set the forcing and basin attribute variables appropriate to the model of interest.
-
-For Ts,obsQ:
-```python
-forcingLst = ['dayl(s/d)', 'prcp(mm/d)', 'srad(W/m2)', 'tmax(C)', 'tmin(C)', 'vp(Pa)', '00060_Mean']
-```
-For Ts,noQ:
-```python
-forcingLst = ['dayl(s/d)', 'prcp(mm/d)', 'srad(W/m2)', 'tmax(C)', 'tmin(C)', 'vp(Pa)']
-```
-For Ts,simQ:
-```python
-forcingLst = ['dayl(s/d)', 'prcp(mm/d)', 'srad(W/m2)', 'tmax(C)', 'tmin(C)', 'vp(Pa)', 'combine_discharge']
-```
-
-When switching between the above model options, delete input/Statistics_basinnorm.json before running the next model.
+    For Ts,obsQ:
+    ```python
+    forcingLst = ['dayl(s/d)', 'prcp(mm/d)', 'srad(W/m2)', 'tmax(C)', 'tmin(C)', 'vp(Pa)', '00060_Mean']
+    ```
+    For Ts,noQ:
+    ```python
+    forcingLst = ['dayl(s/d)', 'prcp(mm/d)', 'srad(W/m2)', 'tmax(C)', 'tmin(C)', 'vp(Pa)']
+    ```
+    For Ts,simQ:
+    ```python
+    forcingLst = ['dayl(s/d)', 'prcp(mm/d)', 'srad(W/m2)', 'tmax(C)', 'tmin(C)', 'vp(Pa)', 'combine_discharge']
+    ```
+    When switching between the above model options, delete input/Statistics_basinnorm.json before running the next model.
 
 4. Run the following code in an `sh` (e.g., `bash`) terminal to train the LSTM and predict stream temperature.
-A GPU and 256GB of memory are strongly recommended.
-```sh
-# in bash or similar:
-python StreamTemp-Integ.py
-```
+    ```sh
+    # in bash or similar:
+    python StreamTemp-Integ.py
+    ```
+    Results from running this code will be stored in the output/noQ, output/obsQ, and output/simQ folders. 
 
-5. Extract results. 
-
+5. Run the Jupyter Notebook, AR2.ipynb, to build the locally-fitted autoregressive model. Launch the notebook from a python prompt: 
+    ```python
+    jupyter notebook AR2.ipynb
+    ```
+    Results within the notebook include scatterplots of predicted vs observed temperatures.
+    After the notebook cells have been run, results will be saved in the output/AR2 directory.
 
 ## Conda environment preparation
 
@@ -107,14 +119,27 @@ conda config --prepend channels conda-forge
 conda config --prepend channels defaults
 conda config --prepend channels pytorch
 
-# create the environment and install modules:
+# create the environment
 conda create -n lstm_tq
 conda activate lstm_tq
-conda install python matplotlib=2.2.0 basemap numpy pandas scipy time statsmodels pyarrow pytorch=1.2.0
-pip install sciencebasepy
 
-# export to YAML:
+# install modules - linux
+conda install python matplotlib=2.2.0 basemap numpy pandas scipy pip time statsmodels pyarrow pytorch=1.2.0 jupyter
+pip install sciencebasepy
 conda env export -n lstm_tq | grep -v "^prefix: " > condaenv_lstm_linux.yml
+
+# install modules - mac
+conda install python matplotlib=2.2.0 basemap numpy pandas scipy pip time statsmodels pyarrow pytorch=1.2.0 jupyter
+pip install sciencebasepy
+conda env export -n lstm_tq | grep -v "^prefix: " > condaenv_lstm_mac.yml
+
+# install modules and export to YAML - windows
+conda install python matplotlib=2.2.0 basemap numpy pandas scipy pip statsmodels pyarrow pytorch=1.2.0 jupyter
+pip install sciencebasepy time
+conda env export -n lstm_tq | grep -v "^prefix: " > condaenv_lstm_win.yml 
+
+# export to YAML
+conda env export -n lstm_tq | grep -v "^prefix: " > condaenv_lstm_***.yml # replace *** with mac, linux, or win 
 ```
 
 ## Environment used in manuscript
